@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "preserve",
+    "lib": ["es2021"],
+    "moduleResolution": "bundler",
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true
+  }
+}
