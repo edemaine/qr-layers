@@ -1,4 +1,0 @@
-qrcode import qrcode, {BitMatrix}
-
-function outerBFS(matrix: BitMatrix)
-  matrix.size

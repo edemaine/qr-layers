@@ -1,0 +1,51 @@
+{Matrix} from ./matrix.civet
+
+type XY = [number, number]
+
+directions := [[-1, 0], [1, 0], [0, -1], [0, 1]]
+
+export function layering(matrix: Matrix, color?: number): {levels: number, layer: Matrix}
+  // Guessing of initial color
+  unless color?
+    layering0 := layering matrix, 0
+    layering1 := layering matrix, 1
+    if layering0.levels <= layering1.levels
+      return layering0
+    else
+      return layering1
+
+  {nx, ny} := matrix
+  layer := new Matrix Uint8Array, nx, ny
+
+  // First layer is the entire boundary, restricted to color
+  levels .= 1
+  last: XY[] .= []
+  function boundary(x: number, y: number): void
+    if color is matrix.get x, y
+      layer.set x, y, levels
+      last.push [x, y]
+  for x of [0...nx]
+    boundary x, 0
+    boundary x, ny-1
+  for y of [0...ny]
+    boundary 0, y
+    boundary nx-1, y
+  // BFS
+  while last#
+    next: XY[] := []
+    for let i = 0; i < last.length; i++
+      [x, y] := last[i]
+      for each [dx, dy] of directions
+        x2 := x + dx
+        y2 := y + dy
+        if layer.has(x2, y2) and not layer.get(x2, y2)
+          if color is matrix.get x2, y2
+            layer.set x2, y2, levels
+            last.push [x2, y2]
+          else
+            layer.set x2, y2, levels+1
+            next.push [x2, y2]
+    last = next
+    levels++ if last#
+    color = 1 - color
+  {levels, layer}

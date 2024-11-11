@@ -1,0 +1,48 @@
+qrcode import {type BitMatrix}
+
+export type TypedArray
+  | Int8Array
+  | Uint8Array
+  | Uint8ClampedArray
+  | Int16Array
+  | Uint16Array
+  | Int32Array
+  | Uint32Array
+  | Float32Array
+  | Float64Array
+
+export type TypedArrayConstructor
+  | typeof Int8Array
+  | typeof Uint8Array
+  | typeof Uint8ClampedArray
+  | typeof Int16Array
+  | typeof Uint16Array
+  | typeof Int32Array
+  | typeof Uint32Array
+  | typeof Float32Array
+  | typeof Float64Array
+
+export class Matrix
+  data: TypedArray
+  @(@type: TypedArrayConstructor, @nx: number, @ny: number)
+    @data = new @type @nx * @ny
+  has(x: number, y: number): boolean
+    0 <= x < @nx and 0 <= y < @ny
+  get(x: number, y: number): number
+    @data[@nx * y + x]
+  set(x: number, y: number, value: number): number
+    @data[@nx * y + x] = value
+  filter(value: number): Matrix
+    result := new Matrix @type, @nx, @ny
+    for y of [0...@ny]
+      for x of [0...@nx]
+        result.set x, y, Number @get(x, y) is value
+    result
+
+export function bitMatrixToMatrix(bitMatrix: BitMatrix): Matrix
+  n := bitMatrix.size
+  matrix := new Matrix Uint8Array, n, n
+  for y of [0...n]
+    for x of [0...n]
+      matrix.set x, y, bitMatrix.get x, y
+  matrix
