@@ -16,11 +16,16 @@ export function App()
   [qrMatrix, setQrMatrix] := createSignal<Matrix?>()
   [layers, setLayers] := createSignal<{levels: number, layer: Matrix}?>()
   function onInput(e)
-    qr := qrcode.create e.currentTarget.value
+    text := e.currentTarget.value
+    unless text
+      setQrMatrix undefined
+      setLayers undefined
+      return
+    qr := qrcode.create text
     setQrMatrix bitMatrixToMatrix qr.modules
     setLayers layering qrMatrix()!
-  <form>
-    <input {onInput}>
+  <form onSubmit={(e) => e.preventDefault()}>
+    <input {onInput} placeholder="Message for QR code" style="width: 500px">
   <DisplayMatrix matrix={qrMatrix()}/>
   <For each=[1<=..layers()?.levels ?? 0]>(level) =>
     <DisplayMatrix matrix={layers()?.layer.filter level}>
