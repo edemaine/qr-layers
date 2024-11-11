@@ -32,11 +32,13 @@ export class Matrix
     @data[@nx * y + x]
   set(x: number, y: number, value: number): number
     @data[@nx * y + x] = value
-  filter(value: number): Matrix
+  copyBlank(): Matrix
+    new Matrix @type, @nx, @ny
+  map(f: (value: number) => number): Matrix
     result := new Matrix @type, @nx, @ny
     for y of [0...@ny]
       for x of [0...@nx]
-        result.set x, y, Number @get(x, y) is value
+        result.set x, y, f @get x, y
     result
 
 export function bitMatrixToMatrix(bitMatrix: BitMatrix): Matrix

@@ -4,7 +4,12 @@ type XY = [number, number]
 
 directions := [[-1, 0], [1, 0], [0, -1], [0, 1]]
 
-export function layering(matrix: Matrix, color?: number): {levels: number, layer: Matrix}
+export type Layering =
+  levels: number
+  layer: Matrix
+  colorMap: Map<number, number>
+
+export function layering(matrix: Matrix, color?: number): Layering
   // Guessing of initial color
   unless color?
     layering0 := layering matrix, 0
@@ -14,10 +19,12 @@ export function layering(matrix: Matrix, color?: number): {levels: number, layer
     else
       return layering1
 
+  colorMap := new Map<number, number>
+  colorMap.set 1, color
   {nx, ny} := matrix
   layer := new Matrix Uint8Array, nx, ny
 
-  // First layer is the entire boundary, restricted to color
+  // First layer is the entire boundary, restricted to initial color
   levels .= 1
   last: XY[] .= []
   function boundary(x: number, y: number): void
@@ -30,8 +37,10 @@ export function layering(matrix: Matrix, color?: number): {levels: number, layer
   for y of [0...ny]
     boundary 0, y
     boundary nx-1, y
+
   // BFS
   while last#
+    colorMap.set levels, color
     next: XY[] := []
     for let i = 0; i < last.length; i++
       [x, y] := last[i]
@@ -46,6 +55,8 @@ export function layering(matrix: Matrix, color?: number): {levels: number, layer
             layer.set x2, y2, levels+1
             next.push [x2, y2]
     last = next
-    levels++ if last#
-    color = 1 - color
-  {levels, layer}
+    if last#
+      levels++
+      color = 1 - color
+
+  {levels, layer, colorMap}
