@@ -17,4 +17,11 @@ export default defineConfig({
   build: {
     target: 'esnext',
   },
+  css: {
+    preprocessorOptions: {
+      sass: {
+        api: "modern-compiler"
+      }
+    }
+  }
 })
