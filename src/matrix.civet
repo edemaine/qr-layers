@@ -34,6 +34,8 @@ export class Matrix
     @data[@nx * y + x]
   set(x: number, y: number, value: number): number
     @data[@nx * y + x] = value
+  flip(x: number, y: number, value: number): void
+    @data[@nx * y + x] ^= value
   copyBlank(): Matrix
     new Matrix @type, @nx, @ny
   map(mapping: (value: number) => number): MappedMatrix
@@ -48,8 +50,9 @@ export class Matrix
 export class MappedMatrix
   nx: number
   ny: number
+  has: (x: number, y: number) => boolean
   @(@matrix: Matrix, @mapping: (value: number) => number)
-    @{nx, ny} = @matrix
+    @{nx, ny, has} = @matrix
   get(x: number, y: number): number
     @mapping @matrix.get x, y
 

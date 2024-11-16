@@ -1,4 +1,4 @@
-{Matrix} from ./matrix.civet
+{Matrix, type MatrixType} from ./matrix.civet
 
 type XY = [number, number]
 
@@ -60,3 +60,64 @@ export function layering(matrix: Matrix, color?: number): Layering
       color = 1 - color
 
   {levels, layer, colorMap}
+
+function rotateLeft(dx: number, dy: number): [number, number]
+  [dy, -dx]
+function rotateRight(dx: number, dy: number): [number, number]
+  [-dy, dx]
+
+export function outlines(matrix: MatrixType, color: number): XY[][]
+  function on(x: number, y: number): boolean
+    (and)
+      matrix.has x, y
+      color is matrix.get x, y
+  function off(x: number, y: number): boolean
+    not on x, y
+
+  visited := new Matrix Uint8Array, matrix.nx + 1, matrix.ny + 1
+  polygons := []
+
+  // Seed outlining from any top-left corner pixel
+  for y of [0..<matrix.ny]
+    for x of [0..<matrix.nx]
+      continue if visited.get x, y
+      continue unless // Top-left corner
+        (and)
+          on x, y
+          off x-1, y
+          off x, y-1
+          off x-1, y-1
+      visited.set x, y, 1
+
+      // Trace the outline from [x,y] starting by going right,
+      // until we loop
+      polygon: XY[] := [[x, y]]
+      x1 .= x
+      y1 .= y
+      dx .= 1
+      dy .= 0
+      for [0..100]
+        x2 := x1 + dx
+        y2 := y1 + dy
+        console.log x1, y1, dx, dy, x2, y2
+        break if dx is 0 and dy is -1 and visited.get x2, y2
+        visited.set x2, y2, 1
+        polygon.push [x2, y2]
+        // Follow outline as leftmost as possible:
+        // Consider rotated left, straight, and rotated right in that order
+        dx = -dx
+        dy = -dy
+        for [1..3]
+          px := dx
+          py := dy
+          [dx, dy] = rotateRight dx, dy
+          break if
+            (and)
+              0 <= x2 <= matrix.nx
+              0 <= y2 <= matrix.ny
+              on x2 - px, y2 - py
+              off x2 + px, y2 + py
+        x1 = x2
+        y1 = y2
+      polygons.push polygon
+  polygons
