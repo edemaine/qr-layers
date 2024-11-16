@@ -1,12 +1,11 @@
 solid-js import {createMemo, createSignal, For, Show}
 qrcode import qrcode, {type BitMatrix}
 ./layers.civet import {layering, type Layering}
-./matrix.civet import {bitMatrixToMatrix, Matrix}
+./matrix.civet import {bitMatrixToMatrix, Matrix, type MatrixType}
 
-export function DisplayMatrix(props: {matrix: Matrix?, color?: number, map?: (value: number) => number})
+export function DisplayMatrix(props: {matrix: MatrixType?, color?: number})
   onColor := createMemo => props.color is not 0 ? "black" : "white"
   offColor := createMemo => props.color is not 0 ? "white" : "black"
-  map := createMemo => props.map ?? (value: number) => value
   <Show when=props.matrix keyed>(matrix) =>
     nx := matrix.nx
     ny := matrix.ny
@@ -14,7 +13,7 @@ export function DisplayMatrix(props: {matrix: Matrix?, color?: number, map?: (va
       <rect x=-1 y=-1 width={nx+2} height={ny+2} fill={props.color? ? onColor() : "white"}>
       <For each=[0...nx]>(x) =>
         <For each=[0...ny]>(y) =>
-          <rect {x,y} width=1 height=1 fill={map()(matrix.get(x, y)) ? onColor() : offColor()} stroke={map()(matrix.get(x, y)) ? onColor() : offColor()} stroke-width={0.05}>
+          <rect {x,y} width=1 height=1 fill={matrix.get(x, y) ? onColor() : offColor()} stroke={matrix.get(x, y) ? onColor() : offColor()} stroke-width={0.05}>
 
 export function App()
   [qrMatrix, setQrMatrix] := createSignal<Matrix?>()
@@ -36,7 +35,7 @@ export function App()
   <Show when=layers()>
     <h2>{layers()?.levels} Layers
     <For each=[1<=..layers()?.levels ?? 0]>(level) =>
-      <DisplayMatrix matrix=layers()?.layer map={(value) => Number value <= level} color=layers()?.colorMap.get(level)>
+      <DisplayMatrix matrix={layers()?.layer.map (value) => Number value <= level} color=layers()?.colorMap.get(level)>
     <h2>{layers()?.levels} Levels
     <For each=[1<=..layers()?.levels ?? 0]>(level) =>
-      <DisplayMatrix matrix=layers()?.layer map={(value) => Number value is level}>
+      <DisplayMatrix matrix={layers()?.layer.map (value) => Number value is level}>
