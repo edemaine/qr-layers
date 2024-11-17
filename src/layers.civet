@@ -96,12 +96,16 @@ export function outlines(matrix: MatrixType, color: number = 0): XY[][]
       y1 .= y
       dx .= 1
       dy .= 0
+      let dxPrev: number?, dyPrev: number?
       for [0..1000000]
         x2 := x1 + dx
         y2 := y1 + dy
         break if x2 is x and y2 is y
         visited.set x2, y2, 1
+        polygon.pop() if dx is dxPrev and dy is dyPrev
         polygon.push [x2, y2]
+        dxPrev = dx
+        dyPrev = dy
         // Follow outline as leftmost as possible:
         // Consider rotated left, straight, and rotated right in that order
         dx = -dx
