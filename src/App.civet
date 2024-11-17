@@ -32,8 +32,9 @@ export function App()
   [margin, setMargin] := createSignal<number> 1
   [qrMatrix, setQrMatrix] := createSignal<Matrix?>()
   [layers, setLayers] := createSignal<Layering?>()
+
   let textRef: HTMLInputElement, qualityRef: HTMLSelectElement
-  function onInput()
+  function onInput(): void
     text := textRef.value
     unless text
       setQrMatrix undefined
@@ -42,6 +43,19 @@ export function App()
     qr := qrcode.create text, errorCorrectionLevel: qualityRef.value as "L" | "M" | "Q" | "H"
     setQrMatrix bitMatrixToMatrix qr.modules
     setLayers layering qrMatrix()!
+
+  let downloadRef: HTMLAnchorElement
+  function download(className: string): void
+    for each svg, i of document.querySelectorAll `.${className} svg`
+      text := `<?xml version="1.0" encoding="utf-8"?>\n` + svg.outerHTML
+      .replace /<svg/, `<svg xmlns="http://www.w3.org/2000/svg" version="1.1"`
+      url := URL.createObjectURL new Blob [text], type: 'image/svg+xml'
+      downloadRef.href = url
+      downloadRef.download = `qr-${className}${i+1}.svg`
+      downloadRef.click() // synchronous
+      downloadRef.href = ''
+      URL.revokeObjectURL url
+
   <form onSubmit={(e) => e.preventDefault()}>
     <input {onInput} placeholder="Message for QR code" style="width: 500px" ref=textRef!>
     <select {onInput} ref=qualityRef!>
@@ -58,10 +72,13 @@ export function App()
     <DisplayMatrix matrix=qrMatrix() {margin()}>
   <Show when=layers()>
     <h2>{layers()?.levels} Layers
-    <For each=[1<=..layers()?.levels ?? 0]>(level) =>
-      <Show when=false>
-        <DisplayMatrix matrix={layers()?.layer.map (value) => Number value <= level} color=layers()?.colorMap.get(level) {margin()}>
-      <DisplayOutlines matrix={layers()?.layer.map (value) => Number value <= level} color=layers()!.colorMap.get(level)! {margin()}>
+    <div .layers>
+      <For each=[1<=..layers()?.levels ?? 0]>(level) =>
+        <Show when=false>
+          <DisplayMatrix matrix={layers()?.layer.map (value) => Number value <= level} color=layers()?.colorMap.get(level) {margin()}>
+        <DisplayOutlines matrix={layers()?.layer.map (value) => Number value <= level} color=layers()!.colorMap.get(level)! {margin()}>
+    <button onClick={(e) => download 'layers'}>Download SVGs
+    <a ref=downloadRef! style="display: none">
     <Show when=false>
       <h2>{layers()?.levels} Levels
       <For each=[1<=..layers()?.levels ?? 0]>(level) =>
