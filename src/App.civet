@@ -3,29 +3,33 @@ qrcode import qrcode, {type BitMatrix}
 ./layers.civet import {layering, outlines, type Layering}
 ./matrix.civet import {bitMatrixToMatrix, Matrix, type MatrixType}
 
-export function DisplayMatrix(props: {matrix: MatrixType?, color?: number})
+export function DisplayMatrix(props: {matrix: MatrixType?, color?: number, margin: number})
   onColor := createMemo => props.color is not 0 ? "black" : "white"
   offColor := createMemo => props.color is not 0 ? "white" : "black"
+  width := createMemo => props.matrix!.nx + 2 * props.margin
+  height := createMemo => props.matrix!.ny + 2 * props.margin
   <Show when=props.matrix keyed>(matrix) =>
-    {nx, ny} := matrix
-    <svg viewBox=`-1 -1 ${nx+2} ${ny+2}`>
-      <rect x=-1 y=-1 width={nx+2} height={ny+2} fill={props.color? ? onColor() : "white"}>
-      <For each=[0...nx]>(x) =>
-        <For each=[0...ny]>(y) =>
+    <svg viewBox=`${-props.margin} ${-props.margin} ${width()} ${height()}`>
+      <rect x=-props.margin y=-props.margin {width(), height()} fill={props.color? ? onColor() : "white"}>
+      <For each=[0...matrix.nx]>(x) =>
+        <For each=[0...matrix.ny]>(y) =>
           <rect {x,y} width=1 height=1 fill={matrix.get(x, y) ? onColor() : offColor()} stroke={matrix.get(x, y) ? onColor() : offColor()} stroke-width={0.05}>
 
-export function DisplayOutlines(props: {matrix: MatrixType?, color: number})
+export function DisplayOutlines(props: {matrix: MatrixType?, color: number, margin: number})
   onColor := createMemo => props.color is not 0 ? "white" : "black"
   offColor := createMemo => props.color is not 0 ? "black" : "white"
+  width := createMemo => props.matrix!.nx + 2 * props.margin
+  height := createMemo => props.matrix!.ny + 2 * props.margin
   <Show when=
     outlines props.matrix if props.matrix?
   keyed>(polygons) =>
-    <svg viewBox=`-1 -1 ${props.matrix!.nx+2} ${props.matrix!.ny+2}`>
-      <rect x=-1 y=-1 width={props.matrix!.nx+2} height={props.matrix!.ny+2} fill=offColor()>
+    <svg viewBox=`${-props.margin} ${-props.margin} ${width()} ${height()}`>
+      <rect x=-props.margin y=-props.margin {width(), height()} fill=offColor()>
       <For each=polygons>(polygon) =>
-        <polygon points={polygon.map([x, y] => `${x},${y}`).join " "} fill=onColor() stroke=onColor() stroke-width={0.05}>
+        <polygon points={polygon.map([x, y] => `${x},${y}`).join " "} fill=onColor() stroke="none">
 
 export function App()
+  [margin, setMargin] := createSignal<number> 1
   [qrMatrix, setQrMatrix] := createSignal<Matrix?>()
   [layers, setLayers] := createSignal<Layering?>()
   function onInput(e)
@@ -39,16 +43,20 @@ export function App()
     setLayers layering qrMatrix()!
   <form onSubmit={(e) => e.preventDefault()}>
     <input {onInput} placeholder="Message for QR code" style="width: 500px">
+    <label>Margin: 
+      <input type="number" value=margin() min=0 step="any" onInput=
+        (e) => setMargin e.currentTarget.valueAsNumber
+      >
   <Show when=qrMatrix()>
     <h2>QR Code
-    <DisplayMatrix matrix=qrMatrix()>
+    <DisplayMatrix matrix=qrMatrix() {margin()}>
   <Show when=layers()>
     <h2>{layers()?.levels} Layers
     <For each=[1<=..layers()?.levels ?? 0]>(level) =>
       <Show when=false>
-        <DisplayMatrix matrix={layers()?.layer.map (value) => Number value <= level} color=layers()?.colorMap.get(level)>
-      <DisplayOutlines matrix={layers()?.layer.map (value) => Number value <= level} color=layers()!.colorMap.get(level)!>
+        <DisplayMatrix matrix={layers()?.layer.map (value) => Number value <= level} color=layers()?.colorMap.get(level) {margin()}>
+      <DisplayOutlines matrix={layers()?.layer.map (value) => Number value <= level} color=layers()!.colorMap.get(level)! {margin()}>
     <Show when=false>
       <h2>{layers()?.levels} Levels
       <For each=[1<=..layers()?.levels ?? 0]>(level) =>
-        <DisplayMatrix matrix={layers()?.layer.map (value) => Number value is level}>
+        <DisplayMatrix matrix={layers()?.layer.map (value) => Number value is level} {margin()}>
