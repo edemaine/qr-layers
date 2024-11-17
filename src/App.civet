@@ -32,17 +32,23 @@ export function App()
   [margin, setMargin] := createSignal<number> 1
   [qrMatrix, setQrMatrix] := createSignal<Matrix?>()
   [layers, setLayers] := createSignal<Layering?>()
-  function onInput(e)
-    text := e.currentTarget.value
+  let textRef: HTMLInputElement, qualityRef: HTMLSelectElement
+  function onInput()
+    text := textRef.value
     unless text
       setQrMatrix undefined
       setLayers undefined
       return
-    qr := qrcode.create text
+    qr := qrcode.create text, errorCorrectionLevel: qualityRef.value as "L" | "M" | "Q" | "H"
     setQrMatrix bitMatrixToMatrix qr.modules
     setLayers layering qrMatrix()!
   <form onSubmit={(e) => e.preventDefault()}>
-    <input {onInput} placeholder="Message for QR code" style="width: 500px">
+    <input {onInput} placeholder="Message for QR code" style="width: 500px" ref=textRef!>
+    <select {onInput} ref=qualityRef!>
+      <option value="L">Low (~7%)
+      <option value="M" selected>Medium (~15%)
+      <option value="Q">Quartile (~25%)
+      <option value="H">High (~30%)
     <label>Margin: 
       <input type="number" value=margin() min=0 step="any" onInput=
         (e) => setMargin e.currentTarget.valueAsNumber
