@@ -110,7 +110,7 @@ export function App()
       <DisplayOutlines outlines=outlines()!.flat() {qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()}>
       <DisplayOutlines outlines=outlines()!.flat() {qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()} strokeColors=
         do
-          colors := ["black", "purple", "red", "orange"]
+          colors := ["black", "#a00"]
           strokes := []
           for outline, i of outlines()!
             color := colors[i%]
