@@ -1,4 +1,4 @@
-solid-js import {createMemo, createSignal, For, Show}
+solid-js import {batch, createEffect, createMemo, createSignal, onMount, For, Show}
 qrcode import qrcode, {type BitMatrix}
 ./layers.civet import {computeLayering, computeOutlines, type Layering}
 ./matrix.civet import {bitMatrixToMatrix, Matrix, type MatrixType}
@@ -29,27 +29,64 @@ export function DisplayOutlines(props: {nx: number, ny: number, outlines: [numbe
       stroke-width={props.stroke}
       style={if props.shadow then `filter: drop-shadow(0 0 0.1px ${onColor()})`}>
 
+defaults :=
+  text: ''
+  quality: 'M'
+  margin: 1
+  stroke: 0.2
+as const
+
 export function App()
-  [margin, setMargin] := createSignal<number> 1
-  [stroke, setStroke] := createSignal<number> 0.2
+  [text, setText] := createSignal<string> defaults.text
+  [quality, setQuality] := createSignal<"L" | "M" | "Q" | "H"> defaults.quality
+  [margin, setMargin] := createSignal<number> defaults.margin
+  [stroke, setStroke] := createSignal<number> defaults.stroke
   [qrMatrix, setQrMatrix] := createSignal<Matrix?>()
   [layers, setLayers] := createSignal<Layering?>()
   [outlines, setOutlines] := createSignal<[number, number][][][]?>()
 
-  let textRef: HTMLInputElement, qualityRef: HTMLSelectElement
-  function onInput(): void
-    text := textRef.value
-    unless text
-      setQrMatrix undefined
-      setLayers undefined
+  let qualityRef: HTMLSelectElement
+  createEffect =>
+    unless text()
+      batch =>
+        setQrMatrix undefined
+        setLayers undefined
+        setOutlines undefined
       return
-    qr := qrcode.create text, errorCorrectionLevel: qualityRef.value as "L" | "M" | "Q" | "H"
-    setQrMatrix bitMatrixToMatrix qr.modules
-    setLayers computeLayering qrMatrix()!
-    setOutlines
-      for level of [1<=..layers()!.levels]
-        computeOutlines
-          layers()!.layer.map (value) => Number value <= level
+    qr := qrcode.create text(), errorCorrectionLevel: quality()
+    batch =>
+      setQrMatrix bitMatrixToMatrix qr.modules
+      setLayers computeLayering qrMatrix()!
+      setOutlines
+        for level of [1<=..layers()!.levels]
+          computeOutlines
+            layers()!.layer.map (value) => Number value <= level
+
+  function loadURL: void
+    batch =>
+      params := new URLSearchParams window.location.search
+      setText params.get('text') ?? defaults.text
+      if params.get('quality') is in ['L', 'M', 'Q', 'H'] as (string??)[]
+        setQuality params.get('quality') as 'L' | 'M' | 'Q' | 'H'
+      else
+        setQuality defaults.quality
+      m .= parseInt params.get('margin')!, 10
+      setMargin isNaN(m) ? defaults.margin : m
+      s := parseFloat params.get('stroke')!
+      setStroke isNaN(s) ? defaults.stroke : s
+  onMount => loadURL()
+  window.addEventListener 'popstate', loadURL
+
+  createEffect =>
+    // Update URL
+    search .= ''
+    search += `&text=${encodeURIComponent text()}` if text() is not defaults.text
+    search += `&quality=${quality()}` if quality() is not defaults.quality
+    search += `&margin=${margin()}` if margin() is not defaults.margin
+    search += `&stroke=${stroke()}` if stroke() is not defaults.stroke
+    search = `?${search[1..]}` if search
+    unless search is window.location.search
+      history.pushState null, 'qr', `${window.location.pathname}${search}`
 
   let downloadRef: HTMLAnchorElement
   function download(className: string): void
@@ -64,10 +101,15 @@ export function App()
       URL.revokeObjectURL url
 
   <form onSubmit={(e) => e.preventDefault()}>
-    <input {onInput} placeholder="Message for QR code" style="width: 500px" ref=textRef!>
-    <select {onInput} ref=qualityRef!>
+    <input placeholder="Message for QR code" style="width: 500px" value=text()
+    onInput=
+      (e) => setText e.currentTarget.value
+    >
+    <select value=quality() onInput=
+      (e) => setQuality e.currentTarget.value as "L" | "M" | "Q" | "H"
+    >
       <option value="L">Low (~7%)
-      <option value="M" selected>Medium (~15%)
+      <option value="M">Medium (~15%)
       <option value="Q">Quartile (~25%)
       <option value="H">High (~30%)
     <label>Margin: 
@@ -99,8 +141,8 @@ export function App()
           .flat()
         {qrMatrix()!.nx, qrMatrix()!.ny} fill=color shadow {margin()}>
 
-    <h2>{layers()?.levels} Outlines — 
-      <input type="number" min=0 value=stroke() onChange=
+    <h2>{layers()?.levels} Outlines —
+      <input type="number" min=0 value=stroke() step="any" onChange=
         (e) => setStroke e.currentTarget.valueAsNumber
       >
     <.outlines>
