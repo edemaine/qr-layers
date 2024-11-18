@@ -15,15 +15,15 @@ export function DisplayMatrix(props: {matrix: MatrixType?, color?: number, margi
         <For each=[0...matrix.ny]>(y) =>
           <rect {x,y} width=1 height=1 fill={matrix.get(x, y) ? onColor() : offColor()} stroke={matrix.get(x, y) ? onColor() : offColor()} stroke-width={0.05}>
 
-export function DisplayOutlines(props: {nx: number, ny: number, outlines: [number, number][][]?, fill?: number, stroke?: number, margin: number})
+export function DisplayOutlines(props: {nx: number, ny: number, outlines: [number, number][][]?, fill?: number, stroke?: number, strokeColors?: string[], margin: number})
   onColor := createMemo => props.fill is not 0 ? "white" : "black"
   offColor := createMemo => props.fill is not 0 ? "black" : "white"
   width := createMemo => props.nx + 2 * props.margin
   height := createMemo => props.ny + 2 * props.margin
   <svg viewBox=`${-props.margin} ${-props.margin} ${width()} ${height()}`>
     <rect x=-props.margin y=-props.margin {width(), height()} fill={props.stroke ? "white" : offColor()}>
-    <For each=props.outlines>(polygon) =>
-      <polygon points={polygon.map([x, y] => `${x},${y}`).join " "} fill={props.stroke ? "none" : onColor()} stroke={props.stroke ? "black" : "none"} stroke-width={props.stroke}>
+    <For each=props.outlines>(polygon, index) =>
+      <polygon points={polygon.map([x, y] => `${x},${y}`).join " "} fill={props.stroke ? "none" : onColor()} stroke={props.stroke ? props.strokeColors?[index()] ?? "black" : "none"} stroke-width={props.stroke}>
 
 export function App()
   [margin, setMargin] := createSignal<number> 1
@@ -95,6 +95,16 @@ export function App()
         <DisplayOutlines {outlines, qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()}>
     <div>
       <DisplayOutlines outlines=outlines()!.flat() {qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()}>
+      <DisplayOutlines outlines=outlines()!.flat() {qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()} strokeColors=
+        do
+          colors := ["black", "purple", "red", "orange"]
+          strokes := []
+          for outline, i of outlines()!
+            color := colors[i%]
+            for polygon of outline
+              strokes.push color
+          strokes
+      >
 
     <Show when=false>
       <h2>{layers()?.levels} Levels
