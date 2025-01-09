@@ -1,4 +1,5 @@
-solid-js import {batch, createEffect, createMemo, createSignal, onMount, For, Show}
+solid-js import {batch, createEffect, createMemo, createSignal, onMount, Index, For, Show}
+solid-js/store import {createStore}
 qrcode import qrcode, {type BitMatrix}
 ./layers.civet import {computeLayering, computeOutlines, type Layering}
 ./matrix.civet import {bitMatrixToMatrix, Matrix, type MatrixType}
@@ -15,16 +16,16 @@ export function DisplayMatrix(props: {matrix: MatrixType?, color?: number, margi
         <For each=[0...matrix.ny]>(y) =>
           <rect {x,y} width=1 height=1 fill={matrix.get(x, y) ? onColor() : offColor()} stroke={matrix.get(x, y) ? onColor() : offColor()} stroke-width={0.05}>
 
-export function DisplayOutlines(props: {nx: number, ny: number, outlines: [number, number][][]?, fill?: number, stroke?: number, shadow?: boolean, strokeColors?: string[], margin: number})
+export function DisplayOutlines(props: {nx: number, ny: number, outlines: [number, number][][]?, fill?: number, stroke?: number, shadow?: boolean, fillColors?: string[], strokeColors?: string[], background?: string, margin: number})
   onColor := createMemo => props.fill is not 0 ? "white" : "black"
   offColor := createMemo => props.fill is not 0 ? "black" : "white"
   width := createMemo => props.nx + 2 * props.margin
   height := createMemo => props.ny + 2 * props.margin
   <svg viewBox=`${-props.margin} ${-props.margin} ${width()} ${height()}`>
-    <rect x=-props.margin y=-props.margin {width(), height()} fill={props.stroke ? "white" : offColor()}>
+    <rect x=-props.margin y=-props.margin {width(), height()} fill={props.background ?? (props.stroke ? "white" : offColor())}>
     <For each=props.outlines>(polygon, index) =>
       <polygon points={polygon.map([x, y] => `${x},${y}`).join " "}
-      fill={props.shadow ? offColor() : props.stroke ? "none" : onColor()}
+      fill={props.shadow ? offColor() : props.stroke ? "none" : props.fillColors ? props.fillColors[index()] : onColor()}
       stroke={props.stroke ? props.strokeColors?[index()] ?? "black" : "none"}
       stroke-width={props.stroke}
       style={if props.shadow then `filter: drop-shadow(0 0 0.1px ${onColor()})`}>
@@ -44,6 +45,9 @@ export function App()
   [qrMatrix, setQrMatrix] := createSignal<Matrix?>()
   [layers, setLayers] := createSignal<Layering?>()
   [outlines, setOutlines] := createSignal<[number, number][][][]?>()
+  [stackColors, setStackColors] := createStore<string[]>([])
+  function getStackColor(i: number): string
+    stackColors[i] ?? (i % 2 ? '#000000' : '#ffffff')
 
   let qualityRef: HTMLSelectElement
   createEffect =>
@@ -132,7 +136,35 @@ export function App()
     <button onClick={(e) => download 'layers'}>Download SVGs
     <a ref=downloadRef! style="display: none">
 
-    <h2>Colored Stacks
+    <h2>Colored Stack
+    <form>
+      <Index each=outlines()!>
+        (o, i) =>
+          <input type="color"
+            value=
+              getStackColor i
+            onInput=
+              (e) => setStackColors i, e.currentTarget.value
+          >
+    <div>
+      <DisplayOutlines outlines=outlines()!.flat()
+        fillColors=
+          for layer, i of outlines()!
+            for j of [1..layer#]
+              getStackColor i+1
+              /* Regular QR:
+              if layers()!.colorMap.get(i+1)
+                'white'
+              else
+                'black'
+              */
+          .flat()
+        background=getStackColor(0)
+        fill=0
+        {qrMatrix()!.nx, qrMatrix()!.ny}
+        {margin()}>
+
+    <h2>Same-Color Stacks
     <div>
       <For each=[0,1]>(color) =>
         <DisplayOutlines outlines=
