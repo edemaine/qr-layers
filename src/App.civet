@@ -95,12 +95,13 @@ export function App()
 
   let downloadRef: HTMLAnchorElement
   function download(className: string): void
-    for each svg, i of document.querySelectorAll `.${className} svg`
+    svgs := document.querySelectorAll `.${className} svg`
+    for each svg, i of svgs
       text := `<?xml version="1.0" encoding="utf-8"?>\n` + svg.outerHTML
       .replace /<svg/, `<svg xmlns="http://www.w3.org/2000/svg" version="1.1"`
       url := URL.createObjectURL new Blob [text], type: 'image/svg+xml'
       downloadRef.href = url
-      downloadRef.download = `qr-${className}${i+1}.svg`
+      downloadRef.download = `qr-${className}${if svgs# is 1 then '' else i+1}.svg`
       downloadRef.click() // synchronous
       downloadRef.href = ''
       URL.revokeObjectURL url
@@ -147,7 +148,7 @@ export function App()
             onInput=
               (e) => setStackColors i, e.currentTarget.value
           >
-    <div>
+    <.coloredStack>
       <DisplayOutlines outlines=outlines()!.flat()
         fillColors=
           for layer, i of outlines()!
@@ -164,6 +165,7 @@ export function App()
         fill=0
         {qrMatrix()!.nx, qrMatrix()!.ny}
         {margin()}>
+    <button onClick={(e) => download 'coloredStack'}>Download SVG
 
     <h2>Same-Color Stacks
     <div>
@@ -178,11 +180,14 @@ export function App()
       <input type="number" min=0 value=stroke() step="any" onChange=
         (e) => setStroke e.currentTarget.valueAsNumber
       >
-    <.outlines>
+    <.outline>
       <For each=outlines()>(outlines) =>
         <DisplayOutlines {outlines, qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()}>
-    <div>
+    <button onClick={(e) => download 'outline'}>Download SVGs
+    <.outlines>
       <DisplayOutlines outlines=outlines()!.flat() {qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()}>
+    <button onClick={(e) => download 'outlines'}>Download SVG
+    <.coloredOutlines>
       <DisplayOutlines outlines=outlines()!.flat() {qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()} strokeColors=
         do
           colors := ["black", "#a00"]
@@ -193,6 +198,7 @@ export function App()
               strokes.push color
           strokes
       >
+    <button onClick={(e) => download 'coloredOutlines'}>Download SVG
 
     <Show when=false>
       <h2>{layers()?.levels} Levels
