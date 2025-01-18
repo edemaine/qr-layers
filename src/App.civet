@@ -60,7 +60,8 @@ export function App()
     qr := qrcode.create text(), errorCorrectionLevel: quality()
     batch =>
       setQrMatrix bitMatrixToMatrix qr.modules
-      setLayers computeLayering qrMatrix()!
+      // Force initial color of 0 (white) to guarantee white margin
+      setLayers computeLayering qrMatrix()!, 0
       setOutlines
         for level of [1<=..layers()!.levels]
           computeOutlines
