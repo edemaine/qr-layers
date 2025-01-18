@@ -122,7 +122,7 @@ export function App()
         (e) => setMargin e.currentTarget.valueAsNumber
       >
   <Show when=qrMatrix()>
-    <h2>QR Code
+    <h2>QR Code {qrMatrix()!.nx}×{qrMatrix()!.ny}
     <DisplayMatrix matrix=qrMatrix() {margin()}>
   <Show when=false>
     <h2>{layers()?.levels} Layers as pixels
