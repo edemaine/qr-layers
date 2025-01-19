@@ -149,6 +149,9 @@ export function App()
         setImage undefined
         return
       setImage img
+  createEffect (lastUrl: string?) =>
+    URL.revokeObjectURL lastUrl if lastUrl
+    image()?.src
   createEffect =>
     qr := qrMain()
     img := image()
