@@ -1,0 +1,51 @@
+./matrix.civet import {Matrix}
+qrcode/lib/core/finder-pattern.js import * as FinderPattern
+qrcode/lib/core/alignment-pattern.js import * as AlignmentPattern
+
+export function qrbg(qr: Matrix, {version:: number}, imageData: ImageData, center: number): Matrix
+  scale := imageData.width / qr.nx
+  {width, height} := imageData
+  out := new Matrix qr.type, width, height
+
+  // Copy image data
+  for y of [0...height]
+    for x of [0...width]
+      i := 4 * (y * width + x)
+      if imageData.data[i+3] < 128 // transparent
+        out.set x, y, qr.get x %/ scale, y %/ scale
+      else
+        out.set x, y, Number imageData.data[i] < 128
+
+  // Centers of QR dots
+  start := Math.floor scale / 2 - center / 2
+  for y of [0...qr.ny]
+    for x of [0...qr.nx]
+      for cx of [0...center]
+        for cy of [0...center]
+          out.set x * scale + start + cx, y * scale + start + cy, qr.get x, y
+
+  function copy(x: number, y: number): void
+    return unless qr.has x, y
+    value := qr.get x, y
+    for dy of [0...scale]
+      for dx of [0...scale]
+        out.set x * scale + dx, y * scale + dy, value
+
+  // QR finder pattern (big concentric squares)
+  for each [x, y] of FinderPattern.getPositions version
+    for dx of [-1..7]
+      for dy of [-1..7]
+        copy x + dx, y + dy
+
+  // QR timing pattern (black/white strip near top and left)
+  for r of [8...qr.nx-8]
+    copy r, 6
+    copy 6, r
+
+  // QR alignment pattern (small concentric squares)
+  for each [x, y] of AlignmentPattern.getPositions version
+    for dx of [-2..2]
+      for dy of [-2..2]
+        copy x + dx, y + dy
+
+  out

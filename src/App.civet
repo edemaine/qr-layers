@@ -1,6 +1,9 @@
 solid-js import {batch, createEffect, createMemo, createSignal, onMount, Index, For, Show}
 solid-js/store import {createStore}
 qrcode import qrcode, {type BitMatrix, type QRCode}
+qrbg import {qrbg}
+@soorria/solid-dropzone import {createDropzone}
+
 ./layers.civet import {computeLayering, computeOutlines, type Layering}
 ./matrix.civet import {bitMatrixToMatrix, Matrix, type MatrixType}
 
@@ -30,7 +33,7 @@ export function DisplayOutlines(props: {nx: number, ny: number, outlines: [numbe
       stroke-width={props.stroke}
       style={if props.shadow then `filter: drop-shadow(0 0 0.1px ${onColor()})`}>
 
-defaults :=
+defaults := {}
   text: ''
   quality: 'M'
   margin: 1
@@ -42,7 +45,9 @@ export function App()
   [quality, setQuality] := createSignal<"L" | "M" | "Q" | "H"> defaults.quality
   [margin, setMargin] := createSignal<number> defaults.margin
   [stroke, setStroke] := createSignal<number> defaults.stroke
-  [qrMatrix, setQrMatrix] := createSignal<Matrix?>()
+  [qrMain, setQrMain] := createSignal<Matrix?>()
+  [qrWithBg, setQrWithBg] := createSignal<Matrix?>()
+  qrMatrix := => qrWithBg() ?? qrMain()
   [qrInfo, setQrInfo] := createSignal<{version: number, segments: QRCode["segments"]}?>()
   [layers, setLayers] := createSignal<Layering?>()
   [outlines, setOutlines] := createSignal<[number, number][][][]?>()
@@ -54,17 +59,23 @@ export function App()
   createEffect =>
     unless text()
       batch =>
-        setQrMatrix undefined
+        setQrMain undefined
         setQrInfo undefined
-        setLayers undefined
-        setOutlines undefined
       return
     qr := qrcode.create text(), errorCorrectionLevel: quality()
     batch =>
-      setQrMatrix bitMatrixToMatrix qr.modules
+      setQrMain bitMatrixToMatrix qr.modules
       setQrInfo qr.{version,segments}
-      // Force initial color of 0 (white) to guarantee white margin
-      setLayers computeLayering qrMatrix()!, 0
+  createEffect =>
+    qr := qrMatrix()
+    unless qr
+      batch =>
+        setLayers undefined
+        setOutlines undefined
+      return
+    // Force initial color of 0 (white) to guarantee white margin
+    batch =>
+      setLayers computeLayering qr, 0
       setOutlines
         for level of [1<=..layers()!.levels]
           computeOutlines
@@ -115,7 +126,42 @@ export function App()
     |> .replace /[^A-Z0-9 $%*+\-./:]/g, ''
     |> setText
 
-  <form onSubmit={(e) => e.preventDefault()}>
+  [fileInfo, setFileInfo] := createSignal ''
+  [image, setImage] := createSignal<HTMLImageElement?>()
+  [scale, setScale] := createSignal 3
+  [center, setCenter] := createSignal 1
+  dropzone := createDropzone
+    noClick: true
+    onDrop: (files) =>
+      file := files[0]
+      setFileInfo `${file.name} (${file.type}, ${file.size} bytes)`
+      img := document.createElement 'img'
+      img.className = 'bgImage'
+      try
+        await new Promise (^img.onload, ^img.onerror) =>
+          img.src = URL.createObjectURL file
+      catch e
+        setFileInfo (i) => `${i} ERROR LOADING AS IMAGE`
+        setImage undefined
+        return
+      setImage img
+  createEffect =>
+    qr := qrMain()
+    img := image()
+    unless qr and img
+      setQrWithBg undefined
+      return
+    canvas := document.createElement 'canvas'
+    canvas.width = scale() * qr.nx
+    canvas.height = scale() * qr.ny
+    context := canvas.getContext('2d')!
+    canvasScale := Math.min canvas.width / img.naturalWidth, canvas.height / img.naturalHeight
+    context.scale canvasScale, canvasScale
+    context.drawImage img, 0, 0
+    imageData := context.getImageData 0, 0, canvas.width, canvas.height
+    setQrWithBg qrbg qr, qrInfo(), imageData, center()
+
+  <form onSubmit={(e) => e.preventDefault()} {...dropzone.getRootProps()} classList={active: dropzone.isDragActive}>
     <input placeholder="Message for QR code" style="width: 500px" value=text()
     onInput=
       (e) => setText e.currentTarget.value
@@ -133,6 +179,23 @@ export function App()
       >
     <button onClick=makeAlphanumeric title="Convert text to fit QR alphanumeric mode, making the QR code smaller">
       Make Alphanumeric
+    <div>
+      <input {...dropzone.getInputProps()}>
+      <button onClick=dropzone.open>Background image file
+      {fileInfo()}{' '}
+      {image()}
+      <Show when=image()>
+        <label>Scale: 
+          <input type="number" value=scale() min=1 onInput=
+            (e) => setScale e.currentTarget.valueAsNumber
+          >
+        <label>Center: 
+          <input type="number" value=center() min=1 onInput=
+            (e) => setCenter e.currentTarget.valueAsNumber
+          >
+        <button onClick=
+          :void => setImage undefined
+        >Clear
   <Show when=qrMatrix()>
     <h2>QR Code: {qrMatrix()!.nx}×{qrMatrix()!.ny} (version {qrInfo()?.version}-{quality()})
     <p .encoding>
