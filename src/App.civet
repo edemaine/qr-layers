@@ -1,6 +1,6 @@
 solid-js import {batch, createEffect, createMemo, createSignal, onMount, Index, For, Show}
 solid-js/store import {createStore}
-qrcode import qrcode, {type BitMatrix}
+qrcode import qrcode, {type BitMatrix, type QRCode}
 ./layers.civet import {computeLayering, computeOutlines, type Layering}
 ./matrix.civet import {bitMatrixToMatrix, Matrix, type MatrixType}
 
@@ -43,6 +43,7 @@ export function App()
   [margin, setMargin] := createSignal<number> defaults.margin
   [stroke, setStroke] := createSignal<number> defaults.stroke
   [qrMatrix, setQrMatrix] := createSignal<Matrix?>()
+  [qrInfo, setQrInfo] := createSignal<{version: number, segments: QRCode["segments"]}?>()
   [layers, setLayers] := createSignal<Layering?>()
   [outlines, setOutlines] := createSignal<[number, number][][][]?>()
   [stackColors, setStackColors] := createStore<string[]>([])
@@ -54,12 +55,14 @@ export function App()
     unless text()
       batch =>
         setQrMatrix undefined
+        setQrInfo undefined
         setLayers undefined
         setOutlines undefined
       return
     qr := qrcode.create text(), errorCorrectionLevel: quality()
     batch =>
       setQrMatrix bitMatrixToMatrix qr.modules
+      setQrInfo qr.{version,segments}
       // Force initial color of 0 (white) to guarantee white margin
       setLayers computeLayering qrMatrix()!, 0
       setOutlines
@@ -131,7 +134,11 @@ export function App()
     <button onClick=makeAlphanumeric title="Convert text to fit QR alphanumeric mode, making the QR code smaller">
       Make Alphanumeric
   <Show when=qrMatrix()>
-    <h2>QR Code {qrMatrix()!.nx}×{qrMatrix()!.ny}
+    <h2>QR Code: {qrMatrix()!.nx}×{qrMatrix()!.ny} (version {qrInfo()?.version}-{quality()})
+    <p .encoding>
+      <b>Encoding:</b>
+      <For each=qrInfo()?.segments>(segment) => <>
+        {' '}+ {segment.getLength()} {segment.mode.id}s in {segment.getBitsLength()} bits
     <DisplayMatrix matrix=qrMatrix() {margin()}>
   <Show when=false>
     <h2>{layers()?.levels} Layers as pixels
