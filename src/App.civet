@@ -106,6 +106,12 @@ export function App()
       downloadRef.href = ''
       URL.revokeObjectURL url
 
+  function makeAlphanumeric(): void
+    text()
+    |> .toUpperCase()
+    |> .replace /[^A-Z0-9 $%*+\-./:]/g, ''
+    |> setText
+
   <form onSubmit={(e) => e.preventDefault()}>
     <input placeholder="Message for QR code" style="width: 500px" value=text()
     onInput=
@@ -122,6 +128,8 @@ export function App()
       <input type="number" value=margin() min=0 step="any" onInput=
         (e) => setMargin e.currentTarget.valueAsNumber
       >
+    <button onClick=makeAlphanumeric title="Convert text to fit QR alphanumeric mode, making the QR code smaller">
+      Make Alphanumeric
   <Show when=qrMatrix()>
     <h2>QR Code {qrMatrix()!.nx}×{qrMatrix()!.ny}
     <DisplayMatrix matrix=qrMatrix() {margin()}>
