@@ -38,6 +38,8 @@ defaults := {}
   quality: 'M'
   margin: 1
   stroke: 0.2
+  scale: 3
+  center: 1
 as const
 
 export function App()
@@ -103,6 +105,8 @@ export function App()
     search += `&quality=${quality()}` if quality() is not defaults.quality
     search += `&margin=${margin()}` if margin() is not defaults.margin
     search += `&stroke=${stroke()}` if stroke() is not defaults.stroke
+    search += `&scale=${scale()}` if scale() is not defaults.scale
+    search += `&center=${center()}` if center() is not defaults.center
     search = `?${search[1..]}` if search
     unless search is window.location.search
       history.pushState null, 'qr', `${window.location.pathname}${search}`
@@ -128,8 +132,8 @@ export function App()
 
   [fileInfo, setFileInfo] := createSignal ''
   [image, setImage] := createSignal<HTMLImageElement?>()
-  [scale, setScale] := createSignal 3
-  [center, setCenter] := createSignal 1
+  [scale, setScale] := createSignal defaults.scale
+  [center, setCenter] := createSignal defaults.center
   dropzone := createDropzone
     noClick: true
     onDrop: (files) =>
