@@ -1,5 +1,5 @@
 solid-js import {batch, createEffect, createMemo, createSignal, onMount, Index, For, Show}
-solid-js/store import {createStore}
+solid-js/store import {createStore, reconcile}
 qrcode import qrcode, {type BitMatrix, type QRCode}
 qrbg import {qrbg}
 @soorria/solid-dropzone import {createDropzone}
@@ -53,7 +53,7 @@ export function App()
   [qrInfo, setQrInfo] := createSignal<{version: number, segments: QRCode["segments"]}?>()
   [layers, setLayers] := createSignal<Layering?>()
   [outlines, setOutlines] := createSignal<[number, number][][][]?>()
-  [stackColors, setStackColors] := createStore<string[]>([])
+  [stackColors, setStackColors] := createStore<string?[]>([])
   function getStackColor(i: number): string
     stackColors[i] ?? (i % 2 ? '#000000' : '#ffffff')
 
@@ -95,6 +95,14 @@ export function App()
       setMargin isNaN(m) ? defaults.margin : m
       s := parseFloat params.get('stroke')!
       setStroke isNaN(s) ? defaults.stroke : s
+      s2 .= parseInt params.get('scale')!, 10
+      setScale isNaN(s2) ? defaults.scale : s2
+      c .= parseInt params.get('center')!, 10
+      setScale isNaN(c) ? defaults.center : c
+      sc .= (params.get('stackColors') ?? '').split(/,/g).map(& or undefined)
+      sc.pop() while sc# and not sc.-1?
+      sc |>= .map (c) => c and `#${c}`
+      setStackColors reconcile sc
   onMount => loadURL()
   window.addEventListener 'popstate', loadURL
 
@@ -107,6 +115,7 @@ export function App()
     search += `&stroke=${stroke()}` if stroke() is not defaults.stroke
     search += `&scale=${scale()}` if scale() is not defaults.scale
     search += `&center=${center()}` if center() is not defaults.center
+    search += `&stackColors=${stackColors.join(',').replace(/#/g, '')}` if stackColors.join ','
     search = `?${search[1..]}` if search
     unless search is window.location.search
       history.pushState null, 'qr', `${window.location.pathname}${search}`
@@ -132,8 +141,8 @@ export function App()
 
   [fileInfo, setFileInfo] := createSignal ''
   [image, setImage] := createSignal<HTMLImageElement?>()
-  [scale, setScale] := createSignal defaults.scale
-  [center, setCenter] := createSignal defaults.center
+  [scale, setScale] := createSignal<number> defaults.scale
+  [center, setCenter] := createSignal<number> defaults.center
   dropzone := createDropzone
     noClick: true
     onDrop: (files) =>
