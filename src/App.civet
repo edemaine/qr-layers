@@ -98,7 +98,7 @@ export function App()
       s2 .= parseInt params.get('scale')!, 10
       setScale isNaN(s2) ? defaults.scale : s2
       c .= parseInt params.get('center')!, 10
-      setScale isNaN(c) ? defaults.center : c
+      setCenter isNaN(c) ? defaults.center : c
       sc .= (params.get('stackColors') ?? '').split(/,/g).map(& or undefined)
       sc.pop() while sc# and not sc.-1?
       sc |>= .map (c) => c and `#${c}`
