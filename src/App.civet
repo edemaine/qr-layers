@@ -177,54 +177,75 @@ export function App()
     imageData := context.getImageData 0, 0, canvas.width, canvas.height
     setQrWithBg qrbg qr, qrInfo(), imageData, center()
 
+  <header>
+    <h1>QR Designer
+    <h2 style="text-align: right">
+      by <a href="https://erikdemaine.org/">Erik Demaine</a> and <a href="https://martindemaine.org/">Martin Demaine</a>
   <form onSubmit={(e) => e.preventDefault()} {...dropzone.getRootProps()} classList={active: dropzone.isDragActive}>
     <input placeholder="Message for QR code" style="width: 500px" value=text()
     onInput=
       (e) => setText e.currentTarget.value
     >
-    <select value=quality() onInput=
-      (e) => setQuality e.currentTarget.value as "L" | "M" | "Q" | "H"
-    >
-      <option value="L">Low (~7%)
-      <option value="M">Medium (~15%)
-      <option value="Q">Quartile (~25%)
-      <option value="H">High (~30%)
-    <label>Margin: 
+    <button onClick=makeAlphanumeric title="Convert text to fit QR alphanumeric mode, making the QR code smaller">
+      Make Alphanumeric
+    <br>
+    <label title=
+      "Increasing error correction will result in larger QR codes that are more robust to mistakes"
+    >QR error correction: 
+      <select value=quality() onInput=
+        (e) => setQuality e.currentTarget.value as "L" | "M" | "Q" | "H"
+      >
+        <option value="L">Low (~7%)
+        <option value="M">Medium (~15%)
+        <option value="Q">Quartile (~25%)
+        <option value="H">High (~30%)
+    <label title=
+      "Add a margin of this many pixels around the QR code"
+    >Margin: 
       <input type="number" value=margin() min=0 step="any" onInput=
         (e) => setMargin e.currentTarget.valueAsNumber
       >
-    <button onClick=makeAlphanumeric title="Convert text to fit QR alphanumeric mode, making the QR code smaller">
-      Make Alphanumeric
     <div>
       <input {...dropzone.getInputProps()}>
-      <button onClick=dropzone.open>Background image file
+      <button onClick=dropzone.open title=
+        "Overlay a background image onto the QR code in between the pixel centers (works best with images already dithered to black and white)"
+      >Background image file
       {fileInfo()}{' '}
       {image()}
       <Show when=image()>
-        <label>Scale: 
+        <br>
+        <button onClick=
+          :void => setImage undefined
+        >Clear background image
+        <label title=
+          "Scale each QR pixel into a square with this dimension"
+        >Scale: 
           <input type="number" value=scale() min=1 onInput=
             (e) => setScale e.currentTarget.valueAsNumber
           >
-        <label>Center: 
+        <label title=
+          "Use the QR code's coloring within a square of this dimension"
+        >Center: 
           <input type="number" value=center() min=1 onInput=
             (e) => setCenter e.currentTarget.valueAsNumber
           >
-        <button onClick=
-          :void => setImage undefined
-        >Clear
+  <Show when={not qrMatrix()}>
+    <h2>Welcome! Enter any message in the box above to create a QR code.
   <Show when=qrMatrix()>
-    <h2>QR Code: {qrMatrix()!.nx}×{qrMatrix()!.ny} (version {qrInfo()?.version}-{quality()})
+    <h2>QR Code: {qrMain()!.nx}×{qrMain()!.ny} (version {qrInfo()?.version}-{quality()})
+      <Show when=qrWithBg()>
+        <span>, scaled to {qrWithBg()!.nx}×{qrWithBg()!.ny}
     <p .encoding>
       <b>Encoding:</b>
       <For each=qrInfo()?.segments>(segment) => <>
-        {' '}+ {segment.getLength()} {segment.mode.id}s in {segment.getBitsLength()} bits
+        {' • '}{segment.getLength()} {segment.mode.id}s in {segment.getBitsLength()} bits
     <DisplayMatrix matrix=qrMatrix() {margin()}>
   <Show when=false>
     <h2>{layers()?.levels} Layers as pixels
     <For each=[1<=..layers()?.levels ?? 0]>(level) =>
       <DisplayMatrix matrix={layers()?.layer.map (value) => Number value <= level} color=layers()?.colorMap.get(level) {margin()}>
-  <Show when=outlines()>
-    <h2>{layers()?.levels} Layers
+  <Show when={outlines() and qrMatrix()}>
+    <h2>{layers()?.levels} Layers &mdash; <i>stack these up to make the QR code</i>
     <.layers>
       <For each=outlines()>(outlines, level) =>
         <DisplayOutlines {outlines, qrMatrix()!.nx, qrMatrix()!.ny} fill=layers()!.colorMap.get(level()+1)! {margin()}>
@@ -232,7 +253,7 @@ export function App()
     <button onClick={(e) => download 'layers'}>Download SVGs
     <a ref=downloadRef! style="display: none">
 
-    <h2>Colored Stack
+    <h2>Colored Stack &mdash; <i>click the boxes to change the layer colors</i>
     <form>
       <Index each=outlines()!>
         (o, i) =>
@@ -261,7 +282,7 @@ export function App()
         {margin()}>
     <button onClick={(e) => download 'coloredStack'}>Download SVG
 
-    <h2>Same-Color Stacks
+    <h2>Same-Color Stacks &mdash; <i>white stack and black stack</i>
     <div>
       <For each=[0,1]>(color) =>
         <DisplayOutlines outlines=
@@ -270,31 +291,38 @@ export function App()
           .flat()
         {qrMatrix()!.nx, qrMatrix()!.ny} fill=color shadow {margin()}>
 
-    <h2>{layers()?.levels} Outlines —
-      <input type="number" min=0 value=stroke() step="any" onChange=
+    <h2>Coloring Book &mdash; <i>fill in alternating black/white to scan</i>
+    <label>Line width:
+      <input type="number" min=0 value=stroke() step="0.05" onInput=
         (e) => setStroke e.currentTarget.valueAsNumber
       >
+    <.outlines>
+      <DisplayOutlines outlines=outlines()!.flat() {qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()}>
+    <button onClick={(e) => download 'outlines'}>Download SVG
+    <Show when=false>
+      <.coloredOutlines>
+        <DisplayOutlines outlines=outlines()!.flat() {qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()} strokeColors=
+          do
+            colors := ["black", "#a00"]
+            strokes := []
+            for outline, i of outlines()!
+              color := colors[i%]
+              for polygon of outline
+                strokes.push color
+            strokes
+        >
+      <button onClick={(e) => download 'coloredOutlines'}>Download SVG
+    <h2>{layers()?.levels} Layer Outlines
     <.outline>
       <For each=outlines()>(outlines) =>
         <DisplayOutlines {outlines, qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()}>
     <button onClick={(e) => download 'outline'}>Download SVGs
-    <.outlines>
-      <DisplayOutlines outlines=outlines()!.flat() {qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()}>
-    <button onClick={(e) => download 'outlines'}>Download SVG
-    <.coloredOutlines>
-      <DisplayOutlines outlines=outlines()!.flat() {qrMatrix()!.nx, qrMatrix()!.ny} {margin(), stroke()} strokeColors=
-        do
-          colors := ["black", "#a00"]
-          strokes := []
-          for outline, i of outlines()!
-            color := colors[i%]
-            for polygon of outline
-              strokes.push color
-          strokes
-      >
-    <button onClick={(e) => download 'coloredOutlines'}>Download SVG
 
     <Show when=false>
       <h2>{layers()?.levels} Levels
       <For each=[1<=..layers()?.levels ?? 0]>(level) =>
         <DisplayMatrix matrix={layers()?.layer.map (value) => Number value is level} {margin()}>
+
+  <footer>
+    <hr>
+    <span>[<a href="https://github.com/edemaine/qr-layers">Source code on GitHub</a>]

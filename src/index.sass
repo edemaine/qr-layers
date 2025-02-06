@@ -5,6 +5,8 @@ body, input, textarea, button, select
   background: black
   color: white
   font-size: 1em
+a
+  color: yellow
 
 svg
   border: 2px gray solid
@@ -13,9 +15,11 @@ svg
   height: 300px
 
 label
-  margin-left: 0.5em
+  margin-left: 1em
+label::before
+  content: " • "
 input[type="number"]
-  width: 3em
+  width: 4em
 
 .active, .active > button
   background: #660
@@ -23,3 +27,9 @@ input[type="number"]
   max-width: 100px
   max-height: 100px
   vertical-align: middle
+
+header
+  display: grid
+  grid-template-columns: auto auto
+  align-items: center
+  gap: 1rem
