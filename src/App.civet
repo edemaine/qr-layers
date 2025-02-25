@@ -1,11 +1,11 @@
 solid-js import {batch, createEffect, createMemo, createSignal, onMount, Index, For, Show}
 solid-js/store import {createStore, reconcile}
 qrcode import qrcode, {type BitMatrix, type QRCode}
-qrbg import {qrbg}
 @soorria/solid-dropzone import {createDropzone}
 
 ./layers.civet import {computeLayering, computeOutlines, type Layering}
 ./matrix.civet import {bitMatrixToMatrix, Matrix, type MatrixType}
+./qrbg.civet import {qrbg}
 
 export function DisplayMatrix(props: {matrix: MatrixType?, color?: number, margin: number})
   onColor := createMemo => props.color is not 0 ? "black" : "white"
