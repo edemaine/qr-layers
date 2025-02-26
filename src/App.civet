@@ -52,7 +52,7 @@ defaults := {}
   scale: 3
   center: 1
   blackWhite: false // black & white
-  threshold: 25 // percent
+  contrast: 80 // percent
 as const
 
 export function App()
@@ -111,8 +111,8 @@ export function App()
       setStroke isNaN(s) ? defaults.stroke : s
       bw .= parseInt params.get('bw')!, 10
       setBlackWhite isNaN(bw) ? defaults.blackWhite : !!bw
-      t .= parseFloat params.get('threshold')!
-      setThreshold isNaN(t) ? defaults.threshold : t
+      t .= parseFloat params.get('contrast')!
+      setContrast isNaN(t) ? defaults.contrast : t
       s2 .= parseInt params.get('scale')!, 10
       setScale isNaN(s2) ? defaults.scale : s2
       c .= parseInt params.get('center')!, 10
@@ -132,7 +132,7 @@ export function App()
     search += `&margin=${marginMain()}` if marginMain() is not defaults.margin
     search += `&stroke=${stroke()}` if stroke() is not defaults.stroke
     search += `&bw=${Number blackWhite()}` if blackWhite() is not defaults.blackWhite
-    search += `&threshold=${Number threshold()}` if threshold() is not defaults.threshold
+    search += `&contrast=${Number contrast()}` if contrast() is not defaults.contrast
     search += `&scale=${scale()}` if scale() is not defaults.scale
     search += `&center=${center()}` if center() is not defaults.center
     search += `&stackColors=${stackColors.join(',').replace(/#/g, '')}` if stackColors.join ','
@@ -162,7 +162,7 @@ export function App()
   [fileInfo, setFileInfo] := createSignal ''
   [image, setImage] := createSignal<HTMLImageElement?>()
   [blackWhite, setBlackWhite] := createSignal<boolean> defaults.blackWhite
-  [threshold, setThreshold] := createSignal<number> defaults.threshold
+  [contrast, setContrast] := createSignal<number> defaults.contrast
   [scale, setScale] := createSignal<number> defaults.scale
   margin := createMemo =>
     if qrWithBg()
@@ -204,7 +204,7 @@ export function App()
     imageData := context.getImageData 0, 0, canvas.width, canvas.height
     setQrWithBg qrbg qr, qrInfo()!, imageData, center()
     unless blackWhite()
-      setQrColor qrbg qr, qrInfo()!, imageData, center(), threshold()
+      setQrColor qrbg qr, qrInfo()!, imageData, center(), contrast()
 
   <header>
     <h1>QR Designer
@@ -254,10 +254,10 @@ export function App()
           >
           Black &amp; white
         <Show when=!blackWhite()>
-          <label title="Percentage a center pixel's brightness can deviate from the QR code, inheriting the hue of the image">
-            Threshold: 
-            <input type="range" value=threshold() min="0" max="100" onInput=
-              (e) => setThreshold e.currentTarget.valueAsNumber
+          <label title="High uses black/white for QR pixel centers; low inherits more color from the image">
+            Contrast: 
+            <input type="range" value=contrast() min="0" max="100" onInput=
+              (e) => setContrast e.currentTarget.valueAsNumber
             >
         <label title=
           "Scale each QR pixel into a square with this dimension"

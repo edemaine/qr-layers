@@ -26,8 +26,8 @@ export function rgb2gray(r: number, g: number, b: number): number
   // https://drafts.fxtf.org/filter-effects/#grayscaleEquivalent
   0.2126 * r + 0.7152 * g + 0.0722 * b
 
-export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: number, threshold?: number): Matrix
-  color := threshold?
+export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: number, contrast?: number): Matrix
+  color := contrast?
   scale := imageData.width / qr.nx
   {width, height} := imageData
   type := color ? Uint32Array : qr.type
@@ -62,16 +62,16 @@ export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: num
           float = true
         if isCenter
           qrColor ?= 255 * (1 - qr.get x %/ scale, y %/ scale)
-          // RGB to HSL and clip L to desired threshold
+          // RGB to HSL and clip L to desired contrast
           [h, s, l] := rgb2hsl r, g, b
           if qrColor
-            t := 100 - threshold
-            if l < 100 - threshold
-              [r, g, b] = hsl2rgb h, s, 100 - threshold
+            if l < contrast
+              [r, g, b] = hsl2rgb h, s, contrast
               float = true
           else
-            if l > threshold
-              [r, g, b] = hsl2rgb h, s, threshold
+            t := 100 - contrast
+            if l > t
+              [r, g, b] = hsl2rgb h, s, t
               float = true
           /*
           gray := rgb2gray r, g, b
