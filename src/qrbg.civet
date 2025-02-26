@@ -38,13 +38,20 @@ export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: num
     else
       &: number
 
+  imp := new Set
+    for [x, y] of importantPixels qr, info
+      `${x},${y}`
+
   // Copy image data, but adjusting scaled pixel centers to match QR code
   start := Math.floor scale / 2 - center / 2
   finish := start + center - 1
   for y of [0...height]
+    yy := y %/ scale
     yIsCenter := start <= y % scale <= finish
     for x of [0...width]
-      isCenter := yIsCenter and start <= x % scale <= finish
+      xx := x %/ scale
+      isCenter := (yIsCenter and start <= x % scale <= finish) or
+        imp.has `${xx},${yy}`
       i := 4 * (y * width + x)
       if color
         alpha := imageData.data[i+3] / 255
@@ -54,14 +61,14 @@ export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: num
         let qrColor: number
         float .= false
         if alpha < 1 // transparent
-          qrColor = 255 * (1 - qr.get x %/ scale, y %/ scale)
+          qrColor = 255 * (1 - qr.get xx, yy)
           beta := 1 - alpha
           r = r + beta * qrColor
           g = g + beta * qrColor
           b = b + beta * qrColor
           float = true
         if isCenter
-          qrColor ?= 255 * (1 - qr.get x %/ scale, y %/ scale)
+          qrColor ?= 255 * (1 - qr.get xx, yy)
           // RGB to HSL and clip L to desired contrast
           [h, s, l] := rgb2hsl r, g, b
           if qrColor
@@ -95,13 +102,6 @@ export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: num
         else
           gray := rgb2gray imageData.data[i], imageData.data[i+1], imageData.data[i+2]
           out.set x, y, Number gray < 128
-
-  for [x, y] of importantPixels qr, info
-    continue unless qr.has x, y
-    value := qrToColor qr.get x, y
-    for dy of [0...scale]
-      for dx of [0...scale]
-        out.set x * scale + dx, y * scale + dy, value
 
   out
 
