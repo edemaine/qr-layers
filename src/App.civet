@@ -50,7 +50,7 @@ defaults := {}
   stroke: 0.2
   scale: 3
   center: 1
-  useColor: true
+  blackWhite: false // black & white
 as const
 
 export function App()
@@ -107,8 +107,8 @@ export function App()
       setMarginMain isNaN(m) ? defaults.margin : m
       s .= parseFloat params.get('stroke')!
       setStroke isNaN(s) ? defaults.stroke : s
-      uc .= parseInt params.get('color')!, 10
-      setUseColor isNaN(uc) ? defaults.useColor : !!uc
+      bw .= parseInt params.get('bw')!, 10
+      setBlackWhite isNaN(bw) ? defaults.blackWhite : !!bw
       s2 .= parseInt params.get('scale')!, 10
       setScale isNaN(s2) ? defaults.scale : s2
       c .= parseInt params.get('center')!, 10
@@ -127,7 +127,7 @@ export function App()
     search += `&quality=${quality()}` if quality() is not defaults.quality
     search += `&margin=${marginMain()}` if marginMain() is not defaults.margin
     search += `&stroke=${stroke()}` if stroke() is not defaults.stroke
-    search += `&color=${Number useColor()}` if useColor() is not defaults.useColor
+    search += `&bw=${Number blackWhite()}` if blackWhite() is not defaults.blackWhite
     search += `&scale=${scale()}` if scale() is not defaults.scale
     search += `&center=${center()}` if center() is not defaults.center
     search += `&stackColors=${stackColors.join(',').replace(/#/g, '')}` if stackColors.join ','
@@ -156,7 +156,7 @@ export function App()
 
   [fileInfo, setFileInfo] := createSignal ''
   [image, setImage] := createSignal<HTMLImageElement?>()
-  [useColor, setUseColor] := createSignal<boolean> defaults.useColor
+  [blackWhite, setBlackWhite] := createSignal<boolean> defaults.blackWhite
   [scale, setScale] := createSignal<number> defaults.scale
   margin := createMemo =>
     if qrWithBg()
@@ -197,7 +197,7 @@ export function App()
     context.drawImage img, 0, 0
     imageData := context.getImageData 0, 0, canvas.width, canvas.height
     setQrWithBg qrbg qr, qrInfo()!, imageData, center()
-    if useColor()
+    unless blackWhite()
       setQrColor qrbg qr, qrInfo()!, imageData, center(), true
 
   <header>
@@ -241,11 +241,12 @@ export function App()
           :void => setImage undefined
         >Clear background image
         <label title=
-          "Use color from the background image in the first QR code (but not layers)"
-        >Color?
-          <input type="checkbox" checked=useColor() onInput=
-            (e) => setUseColor e.currentTarget.checked
+          "Whether first QR code should use binary black/white. (Layers always do.)"
+        >
+          <input type="checkbox" checked=blackWhite() onInput=
+            (e) => setBlackWhite e.currentTarget.checked
           >
+          Black &amp; white
         <label title=
           "Scale each QR pixel into a square with this dimension"
         >Scale: 
@@ -268,7 +269,7 @@ export function App()
       <b>Encoding:</b>
       <For each=qrInfo()?.segments>(segment) => <>
         {' • '}{segment.getLength()} {segment.mode.id}s in {segment.getBitsLength()} bits
-    >if useColor() and qrColor()
+    >if !blackWhite() and qrColor()
       <DisplayColorMatrix matrix=qrColor() {margin()}>
     else
       <DisplayMatrix matrix=qrMatrix() {margin()}>

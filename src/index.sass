@@ -18,6 +18,8 @@ label
   margin-left: 1em
 label::before
   content: " • "
+label:has(input[type="checkbox"])::before
+  content: ""
 input[type="number"]
   width: 4em
 
