@@ -22,7 +22,12 @@ export function importantPixels(qr: MatrixType, {version:: number}): Generator<[
       for dy of [-2..2]
         yield [x + dx, y + dy]
 
-export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: number, color?: boolean): Matrix
+export function rgb2gray(r: number, g: number, b: number): number
+  // https://drafts.fxtf.org/filter-effects/#grayscaleEquivalent
+  0.2126 * r + 0.7152 * g + 0.0722 * b
+
+export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: number, threshold?: number): Matrix
+  color := threshold?
   scale := imageData.width / qr.nx
   {width, height} := imageData
   type := color ? Uint32Array : qr.type
@@ -33,34 +38,63 @@ export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: num
     else
       &: number
 
-  // Copy image data
+  // Copy image data, but adjusting scaled pixel centers to match QR code
+  start := Math.floor scale / 2 - center / 2
+  finish := start + center - 1
   for y of [0...height]
+    yIsCenter := start <= y % scale <= finish
     for x of [0...width]
+      isCenter := yIsCenter and start <= x % scale <= finish
       i := 4 * (y * width + x)
       if color
         alpha := imageData.data[i+3] / 255
+        r .= imageData.data[i]
+        g .= imageData.data[i+1]
+        b .= imageData.data[i+2]
+        let qrColor: number
+        float .= false
         if alpha < 1 // transparent
+          qrColor = 255 * (1 - qr.get x %/ scale, y %/ scale)
           beta := 1 - alpha
-          qrColor := 255 * (1 - qr.get x %/ scale, y %/ scale)
-          out.set x, y, (alpha * imageData.data[i] + beta * qrColor << 16) | (alpha * imageData.data[i+1] + beta * qrColor << 8) | (alpha * imageData.data[i+2] + beta * qrColor)
-        else
-          out.set x, y, (imageData.data[i] << 16) | (imageData.data[i+1] << 8) | (imageData.data[i+2])
+          r = r + beta * qrColor
+          g = g + beta * qrColor
+          b = b + beta * qrColor
+          float = true
+        if isCenter
+          qrColor ?= 255 * (1 - qr.get x %/ scale, y %/ scale)
+          // RGB to HSL and clip L to desired threshold
+          [h, s, l] := rgb2hsl r, g, b
+          if qrColor
+            t := 100 - threshold
+            if l < 100 - threshold
+              [r, g, b] = hsl2rgb h, s, 100 - threshold
+              float = true
+          else
+            if l > threshold
+              [r, g, b] = hsl2rgb h, s, threshold
+              float = true
+          /*
+          gray := rgb2gray r, g, b
+          diff := Math.abs gray - qrColor
+          if diff > threshold
+            t := (diff - threshold) / 255
+            s := 1 - t
+            r = s * r + t * qrColor
+            g = s * g + t * qrColor
+            b = s * b + t * qrColor
+            float = true
+          */
+        if float
+          r = Math.round r
+          g = Math.round g
+          b = Math.round b
+        out.set x, y, (r << 16) | (g << 8) | (b)
       else
-        if imageData.data[i+3] < 128 // transparent
+        if isCenter or imageData.data[i+3] < 128 // transparent
           out.set x, y, qr.get x %/ scale, y %/ scale
         else
-          // https://drafts.fxtf.org/filter-effects/#grayscaleEquivalent
-          gray := 0.2126 * imageData.data[i] + 0.7152 * imageData.data[i+1] + 0.0722 * imageData.data[i+2]
+          gray := rgb2gray imageData.data[i], imageData.data[i+1], imageData.data[i+2]
           out.set x, y, Number gray < 128
-
-  // Centers of QR dots
-  start := Math.floor scale / 2 - center / 2
-  for y of [0...qr.ny]
-    for x of [0...qr.nx]
-      for cx of [0...center]
-        for cy of [0...center]
-          out.set x * scale + start + cx, y * scale + start + cy,
-            qrToColor qr.get x, y
 
   for [x, y] of importantPixels qr, info
     continue unless qr.has x, y
@@ -70,3 +104,60 @@ export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: num
         out.set x * scale + dx, y * scale + dy, value
 
   out
+
+// RGB/HSL conversion based on
+// https://css-tricks.com/converting-color-spaces-in-javascript/
+
+type RGB = [number, number, number]
+
+function rgb2hsl(r: number, g: number, b: number): RGB
+  r /= 255
+  g /= 255
+  b /= 255
+
+  max := Math.max r, g, b
+  min := Math.min r, g, b
+  l .= (max + min) / 2
+  let s: number, h: number
+  if max is min
+    h = s = 0 // achromatic
+  else
+    c := max - min
+    s = c / (1 - Math.abs 2*l - 1)
+    if max is r
+      h = (g - b) / c % 6
+    else if max is g
+      h = (b - r) / c + 2
+    else // max is b
+      h = (r - g) / c + 4
+    h *= 60
+    h += 360 if h < 0
+  
+  l *= 100
+  s *= 100
+  [h, s, l]
+
+function hsl2rgb(h: number, s: number, l: number): [number, number, number]
+  s /= 100
+  l /= 100
+  c := (1 - Math.abs 2*l - 1) * s
+  x := c * (1 - Math.abs (h / 60) % 2 - 1)
+  m := l - c/2
+  let r: number, g: number, b: number
+  if h < 60
+    r = c; g = x; b = 0
+  else if h < 120
+    r = x; g = c; b = 0
+  else if h < 180
+    r = 0; g = c; b = x
+  else if h < 240
+    r = 0; g = x; b = c
+  else if h < 300
+    r = x; g = 0; b = c
+  else
+    r = c; g = 0; b = x
+  [
+    (r + m) * 255
+    (g + m) * 255
+    (b + m) * 255
+  ]

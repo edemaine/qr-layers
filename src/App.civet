@@ -25,9 +25,10 @@ export function DisplayColorMatrix(props: {matrix: MatrixType?, margin: number})
   <Show when=props.matrix keyed>(matrix) =>
     <svg viewBox=`${-props.margin} ${-props.margin} ${width()} ${height()}`>
       <rect x=-props.margin y=-props.margin {width(), height()} fill="white">
-      <For each=[0...matrix.nx]>(x) =>
-        <For each=[0...matrix.ny]>(y) =>
-          <rect {x,y} width=1 height=1 fill={'#' + matrix.get(x, y).toString(16).padStart(6, '0')} stroke={'#' + matrix.get(x, y).toString(16).padStart(6, '0')} stroke-width={0.05}>
+      <g stroke-width={0.1}>
+        <For each=[0...matrix.nx]>(x) =>
+          <For each=[0...matrix.ny]>(y) =>
+            <rect {x,y} width=1 height=1 fill={'#' + matrix.get(x, y).toString(16).padStart(6, '0')} stroke={'#' + matrix.get(x, y).toString(16).padStart(6, '0')}>
 
 export function DisplayOutlines(props: {nx: number, ny: number, outlines: [number, number][][]?, fill?: number, stroke?: number, shadow?: boolean, fillColors?: string[], strokeColors?: string[], background?: string, margin: number})
   onColor := createMemo => props.fill is not 0 ? "white" : "black"
@@ -51,6 +52,7 @@ defaults := {}
   scale: 3
   center: 1
   blackWhite: false // black & white
+  threshold: 25 // percent
 as const
 
 export function App()
@@ -109,6 +111,8 @@ export function App()
       setStroke isNaN(s) ? defaults.stroke : s
       bw .= parseInt params.get('bw')!, 10
       setBlackWhite isNaN(bw) ? defaults.blackWhite : !!bw
+      t .= parseFloat params.get('threshold')!
+      setThreshold isNaN(t) ? defaults.threshold : t
       s2 .= parseInt params.get('scale')!, 10
       setScale isNaN(s2) ? defaults.scale : s2
       c .= parseInt params.get('center')!, 10
@@ -128,6 +132,7 @@ export function App()
     search += `&margin=${marginMain()}` if marginMain() is not defaults.margin
     search += `&stroke=${stroke()}` if stroke() is not defaults.stroke
     search += `&bw=${Number blackWhite()}` if blackWhite() is not defaults.blackWhite
+    search += `&threshold=${Number threshold()}` if threshold() is not defaults.threshold
     search += `&scale=${scale()}` if scale() is not defaults.scale
     search += `&center=${center()}` if center() is not defaults.center
     search += `&stackColors=${stackColors.join(',').replace(/#/g, '')}` if stackColors.join ','
@@ -157,6 +162,7 @@ export function App()
   [fileInfo, setFileInfo] := createSignal ''
   [image, setImage] := createSignal<HTMLImageElement?>()
   [blackWhite, setBlackWhite] := createSignal<boolean> defaults.blackWhite
+  [threshold, setThreshold] := createSignal<number> defaults.threshold
   [scale, setScale] := createSignal<number> defaults.scale
   margin := createMemo =>
     if qrWithBg()
@@ -198,7 +204,7 @@ export function App()
     imageData := context.getImageData 0, 0, canvas.width, canvas.height
     setQrWithBg qrbg qr, qrInfo()!, imageData, center()
     unless blackWhite()
-      setQrColor qrbg qr, qrInfo()!, imageData, center(), true
+      setQrColor qrbg qr, qrInfo()!, imageData, center(), threshold()
 
   <header>
     <h1>QR Designer
@@ -247,6 +253,12 @@ export function App()
             (e) => setBlackWhite e.currentTarget.checked
           >
           Black &amp; white
+        <Show when=!blackWhite()>
+          <label title="Percentage a center pixel's brightness can deviate from the QR code, inheriting the hue of the image">
+            Threshold: 
+            <input type="range" value=threshold() min="0" max="100" onInput=
+              (e) => setThreshold e.currentTarget.valueAsNumber
+            >
         <label title=
           "Scale each QR pixel into a square with this dimension"
         >Scale: 
