@@ -19,6 +19,16 @@ export function DisplayMatrix(props: {matrix: MatrixType?, color?: number, margi
         <For each=[0...matrix.ny]>(y) =>
           <rect {x,y} width=1 height=1 fill={matrix.get(x, y) ? onColor() : offColor()} stroke={matrix.get(x, y) ? onColor() : offColor()} stroke-width={0.05}>
 
+export function DisplayColorMatrix(props: {matrix: MatrixType?, margin: number})
+  width := createMemo => props.matrix!.nx + 2 * props.margin
+  height := createMemo => props.matrix!.ny + 2 * props.margin
+  <Show when=props.matrix keyed>(matrix) =>
+    <svg viewBox=`${-props.margin} ${-props.margin} ${width()} ${height()}`>
+      <rect x=-props.margin y=-props.margin {width(), height()} fill="white">
+      <For each=[0...matrix.nx]>(x) =>
+        <For each=[0...matrix.ny]>(y) =>
+          <rect {x,y} width=1 height=1 fill={'#' + matrix.get(x, y).toString(16).padStart(6, '0')} stroke={'#' + matrix.get(x, y).toString(16).padStart(6, '0')} stroke-width={0.05}>
+
 export function DisplayOutlines(props: {nx: number, ny: number, outlines: [number, number][][]?, fill?: number, stroke?: number, shadow?: boolean, fillColors?: string[], strokeColors?: string[], background?: string, margin: number})
   onColor := createMemo => props.fill is not 0 ? "white" : "black"
   offColor := createMemo => props.fill is not 0 ? "black" : "white"
@@ -40,6 +50,7 @@ defaults := {}
   stroke: 0.2
   scale: 3
   center: 1
+  useColor: true
 as const
 
 export function App()
@@ -49,6 +60,7 @@ export function App()
   [stroke, setStroke] := createSignal<number> defaults.stroke
   [qrMain, setQrMain] := createSignal<Matrix?>()
   [qrWithBg, setQrWithBg] := createSignal<Matrix?>()
+  [qrColor, setQrColor] := createSignal<Matrix?>()
   qrMatrix := => qrWithBg() ?? qrMain()
   [qrInfo, setQrInfo] := createSignal<{version: number, segments: QRCode["segments"]}?>()
   [layers, setLayers] := createSignal<Layering?>()
@@ -93,8 +105,10 @@ export function App()
         setQuality defaults.quality
       m .= parseInt params.get('margin')!, 10
       setMarginMain isNaN(m) ? defaults.margin : m
-      s := parseFloat params.get('stroke')!
+      s .= parseFloat params.get('stroke')!
       setStroke isNaN(s) ? defaults.stroke : s
+      uc .= parseInt params.get('color')!, 10
+      setUseColor isNaN(uc) ? defaults.useColor : !!uc
       s2 .= parseInt params.get('scale')!, 10
       setScale isNaN(s2) ? defaults.scale : s2
       c .= parseInt params.get('center')!, 10
@@ -113,6 +127,7 @@ export function App()
     search += `&quality=${quality()}` if quality() is not defaults.quality
     search += `&margin=${marginMain()}` if marginMain() is not defaults.margin
     search += `&stroke=${stroke()}` if stroke() is not defaults.stroke
+    search += `&color=${Number useColor()}` if useColor() is not defaults.useColor
     search += `&scale=${scale()}` if scale() is not defaults.scale
     search += `&center=${center()}` if center() is not defaults.center
     search += `&stackColors=${stackColors.join(',').replace(/#/g, '')}` if stackColors.join ','
@@ -141,6 +156,7 @@ export function App()
 
   [fileInfo, setFileInfo] := createSignal ''
   [image, setImage] := createSignal<HTMLImageElement?>()
+  [useColor, setUseColor] := createSignal<boolean> defaults.useColor
   [scale, setScale] := createSignal<number> defaults.scale
   margin := createMemo =>
     if qrWithBg()
@@ -180,7 +196,9 @@ export function App()
     context.scale canvasScale, canvasScale
     context.drawImage img, 0, 0
     imageData := context.getImageData 0, 0, canvas.width, canvas.height
-    setQrWithBg qrbg qr, qrInfo(), imageData, center()
+    setQrWithBg qrbg qr, qrInfo()!, imageData, center()
+    if useColor()
+      setQrColor qrbg qr, qrInfo()!, imageData, center(), true
 
   <header>
     <h1>QR Designer
@@ -213,7 +231,7 @@ export function App()
     <div>
       <input {...dropzone.getInputProps()}>
       <button onClick=dropzone.open title=
-        "Overlay a background image onto the QR code in between the pixel centers (works best with images already dithered to black and white)"
+        "Overlay a background image onto the QR code in between the pixel centers (for layering, works best with images already dithered to black and white with the correct resolution)"
       >Background image file
       {fileInfo()}{' '}
       {image()}
@@ -222,6 +240,12 @@ export function App()
         <button onClick=
           :void => setImage undefined
         >Clear background image
+        <label title=
+          "Use color from the background image in the first QR code (but not layers)"
+        >Color?
+          <input type="checkbox" checked=useColor() onInput=
+            (e) => setUseColor e.currentTarget.checked
+          >
         <label title=
           "Scale each QR pixel into a square with this dimension"
         >Scale: 
@@ -244,7 +268,10 @@ export function App()
       <b>Encoding:</b>
       <For each=qrInfo()?.segments>(segment) => <>
         {' • '}{segment.getLength()} {segment.mode.id}s in {segment.getBitsLength()} bits
-    <DisplayMatrix matrix=qrMatrix() {margin()}>
+    >if useColor() and qrColor()
+      <DisplayColorMatrix matrix=qrColor() {margin()}>
+    else
+      <DisplayMatrix matrix=qrMatrix() {margin()}>
   <Show when=false>
     <h2>{layers()?.levels} Layers as pixels
     <For each=[1<=..layers()?.levels ?? 0]>(level) =>

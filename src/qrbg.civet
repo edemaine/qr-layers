@@ -22,19 +22,36 @@ export function importantPixels(qr: MatrixType, {version:: number}): Generator<[
       for dy of [-2..2]
         yield [x + dx, y + dy]
 
-export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: number): Matrix
+export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: number, color?: boolean): Matrix
   scale := imageData.width / qr.nx
   {width, height} := imageData
-  out := new Matrix qr.type, width, height
+  type := color ? Uint32Array : qr.type
+  out := new Matrix type, width, height
+  qrToColor :=
+    if color
+      0xffffff * (1 - (&: number))
+    else
+      &: number
 
   // Copy image data
   for y of [0...height]
     for x of [0...width]
       i := 4 * (y * width + x)
-      if imageData.data[i+3] < 128 // transparent
-        out.set x, y, qr.get x %/ scale, y %/ scale
+      if color
+        alpha := imageData.data[i+3] / 255
+        if alpha < 1 // transparent
+          beta := 1 - alpha
+          qrColor := 255 * (1 - qr.get x %/ scale, y %/ scale)
+          out.set x, y, (alpha * imageData.data[i] + beta * qrColor << 16) | (alpha * imageData.data[i+1] + beta * qrColor << 8) | (alpha * imageData.data[i+2] + beta * qrColor)
+        else
+          out.set x, y, (imageData.data[i] << 16) | (imageData.data[i+1] << 8) | (imageData.data[i+2])
       else
-        out.set x, y, Number imageData.data[i] < 128
+        if imageData.data[i+3] < 128 // transparent
+          out.set x, y, qr.get x %/ scale, y %/ scale
+        else
+          // https://drafts.fxtf.org/filter-effects/#grayscaleEquivalent
+          gray := 0.2126 * imageData.data[i] + 0.7152 * imageData.data[i+1] + 0.0722 * imageData.data[i+2]
+          out.set x, y, Number gray < 128
 
   // Centers of QR dots
   start := Math.floor scale / 2 - center / 2
@@ -42,16 +59,14 @@ export function qrbg(qr: Matrix, info: QRInfo, imageData: ImageData, center: num
     for x of [0...qr.nx]
       for cx of [0...center]
         for cy of [0...center]
-          out.set x * scale + start + cx, y * scale + start + cy, qr.get x, y
+          out.set x * scale + start + cx, y * scale + start + cy,
+            qrToColor qr.get x, y
 
-  function copy(x: number, y: number): void
-    return unless qr.has x, y
-    value := qr.get x, y
+  for [x, y] of importantPixels qr, info
+    continue unless qr.has x, y
+    value := qrToColor qr.get x, y
     for dy of [0...scale]
       for dx of [0...scale]
         out.set x * scale + dx, y * scale + dy, value
-
-  for [x, y] of importantPixels qr, info
-    copy x, y
 
   out
